@@ -30,11 +30,11 @@ class MinesweeperModel:
                 x = random.randrange(0, self.width)
                 y = random.randrange(0, self.height)
 
-                if not self.board[x][y]:
+                if not self.board[x][y][0]:
                     self.board[x][y] = (True, False)
                     break
 
-    def mines_around(self, x, y) -> int:
+    def __mines_around(self, x, y) -> int:
         if x < 0 or x >= self.width:
             raise ValueError("Illegal value for x")
         if y < 0 or y >= self.height:
@@ -63,4 +63,4 @@ class MinesweeperModel:
             raise MineFound
         else:
             # Calculate the number of mines surrounding the field
-            return self.mines_around(x, y)
+            return self.__mines_around(x, y)
