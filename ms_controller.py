@@ -1,8 +1,23 @@
+import time
+
 from PyQt5.QtCore import QSignalMapper, Qt
-from PyQt5.QtWidgets import QDialog, QGridLayout, QLabel, QMainWindow, QPushButton
+from PyQt5.QtWidgets import QDialog, QGridLayout, QLabel, QMainWindow, QPushButton, QSizePolicy
 
 from ms_window import Ui_MainWindow
 from ms_model import *
+from ms_custom_game_dialog import Ui_Dialog
+
+
+class CustomGameDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent=parent)
+
+        self.view = Ui_Dialog()
+        self.view.setupUi(self)
+
+        self.setModal(True)
+        self.view.buttonBox.accepted.connect(self.accept)
+        self.view.buttonBox.rejected.connect(self.reject)
 
 
 class MinesweeperController(QMainWindow):
@@ -47,17 +62,28 @@ class MinesweeperController(QMainWindow):
         """
         super().__init__(parent=None)
 
-        self.columns = columns
-        self.rows = rows
-        self.mines = mines
-        self.game_running = True
+        # These attributes will be initialized in __new_game()
+        self.columns = 0
+        self.rows = 0
+        self.mines = 0
+        self.game_running = False
 
         # Initialize the GUI
         self.view = Ui_MainWindow()
         self.view.setupUi(self)
 
-        # Initialize the model
-        self.model = MinesweeperModel(width=self.columns, height=self.rows, n_mines=mines)
+        # Connect the signals of the "New game" buttons
+        self.view.new_game_easy.triggered.connect(self.easy_game)
+        self.view.new_game_medium.triggered.connect(self.medium_game)
+        self.view.new_game_difficult.triggered.connect(self.difficult_game)
+        self.view.new_game_custom.triggered.connect(self.custom_game_dialog)
+
+        # The model will be initialized in __new_game()
+        self.model = None
+
+        # A dialog window for starting a custom game
+        self.dialog = CustomGameDialog()
+        self.dialog.accepted.connect(self.__custom_game)
 
         # Initialize a QSignalMapper to enable mapping all button clicks to a single method
         self.mapper = QSignalMapper(self.view.centralwidget)
@@ -76,41 +102,9 @@ class MinesweeperController(QMainWindow):
         # "re-parented" to the main window after being added to a layout
         self.buttons = []
 
-        # Add the buttons to the GUI
-        for n in range(self.columns * self.rows):
-            # Create the QPushButton
-            button = QPushButton()
-            button.setFixedSize(40, 40)
-
-            # Connect the button signals
-            self.mapper.setMapping(button, n)
-            button.clicked.connect(self.mapper.map)  # For left-clicks
-            self.rc_mapper.setMapping(button, n)
-            button.customContextMenuRequested.connect(self.rc_mapper.map)  # For right-clicks
-            button.setContextMenuPolicy(Qt.CustomContextMenu)  # For enabling the customContextMenuRequested signal
-
-            # Add the button to the QGridLayout
-            self.grid.addWidget(button, int(n / self.columns), n % self.columns, alignment=Qt.AlignCenter)
-            self.buttons.append(button)
-
-        # Resize the grid rows
-        for i in range(self.grid.rowCount()):
-            self.grid.setRowMinimumHeight(i, 40)
-
-        # Resize the grid columns
-        for i in range(self.grid.columnCount()):
-            self.grid.setColumnMinimumWidth(i, 40)
-
         self.grid.setSizeConstraint(QGridLayout.SetFixedSize)
 
-        # For some reason, it really is that complicated to resize the window appropiately...
-        window_width = self.view.main_layout.sizeHint().width() + 18
-        window_height = self.view.main_layout.sizeHint().height() \
-                        + self.view.menubar.sizeHint().height() \
-                        + self.view.statusbar.sizeHint().height() \
-                        + 18
-
-        self.setFixedSize(window_width, window_height)
+        self.__new_game(columns=columns, rows=rows, mines=mines)
 
     def button_clicked(self, position: int) -> None:
         """Handle a click event on a button on the game board
@@ -148,6 +142,95 @@ class MinesweeperController(QMainWindow):
             self.__tag_field(x, y)
         else:
             self.view.statusbar.showMessage("You need to restart the game!", 5000)
+
+    def easy_game(self) -> None:
+        """Start a new game on a 9x9 board with 10 mines"""
+        self.__new_game()
+
+    def medium_game(self) -> None:
+        """Start a new game on a 16x16 board with 40 mines"""
+        self.__new_game(columns=16, rows=16, mines=40)
+
+    def difficult_game(self) -> None:
+        """Start a new game on a 30x16 board with 99 mines"""
+        self.__new_game(columns=30, rows=16, mines=99)
+
+    def custom_game_dialog(self) -> None:
+        """Open a dialog window for the player to choose custom board dimensions and the number of mines"""
+        self.dialog.exec()
+
+    def __custom_game(self) -> None:
+        """Read the values for the custom game from the QDialog and start the game"""
+        cols = self.dialog.view.columns.value()
+        rows = self.dialog.view.rows.value()
+        mines = self.dialog.view.mines.value()
+        self.__new_game(columns=cols, rows=rows, mines=mines)
+
+    def __new_game(self, columns: int = 9, rows: int = 9, mines: int = 10) -> None:
+        """Start a new game of Minesweeper
+
+        This will create the game board and hide the specified number of mines on the board.
+
+        :param columns: The number of columns on the game board (the width). Default is 9.
+        :param rows: The number of rows on the game board (the height). Default is 9.
+        :param mines: The number of mines to hide on the game board. There cannot be more mines on the game board than
+            there are fields. Default is 10.
+        """
+        self.columns = columns
+        self.rows = rows
+        self.mines = mines
+        self.game_running = True
+
+        # Initialize a new model
+        self.model = MinesweeperModel(width=self.columns, height=self.rows, n_mines=mines)
+
+        # Clear the QGridLayout
+        while True:
+            item = self.grid.takeAt(0)
+            if item is None:
+                break
+            else:
+                self.grid.removeItem(item)
+                item.widget().deleteLater()
+
+        # Clear the list of buttons
+        self.buttons.clear()
+
+        # Add the buttons to the GUI
+        for n in range(self.columns * self.rows):
+            # Create the QPushButton
+            button = QPushButton()
+            button.setFixedSize(40, 40)
+            button.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+
+            # Connect the button signals
+            self.mapper.setMapping(button, n)
+            button.clicked.connect(self.mapper.map)  # For left-clicks
+            self.rc_mapper.setMapping(button, n)
+            button.customContextMenuRequested.connect(self.rc_mapper.map)  # For right-clicks
+            button.setContextMenuPolicy(Qt.CustomContextMenu)  # For enabling the customContextMenuRequested signal
+
+            # Add the button to the QGridLayout
+            self.grid.addWidget(button, int(n / self.columns), n % self.columns, alignment=Qt.AlignCenter)
+            self.buttons.append(button)
+
+        # Resize the grid rows
+        for i in range(self.grid.rowCount()):
+            self.grid.setRowMinimumHeight(i, 40)
+
+        # Resize the grid columns
+        for i in range(self.grid.columnCount()):
+            self.grid.setColumnMinimumWidth(i, 40)
+
+        # For some reason, it really is that complicated to resize the window appropiately...
+        window_width = self.columns * 45 + 18
+        window_height = self.rows * 45 + 18 \
+                        + self.view.menubar.sizeHint().height() \
+                        + self.view.statusbar.sizeHint().height() \
+                        + 18
+
+        # self.setFixedSize(window_width, window_height)
+        self.resize(window_width, window_height)
 
     def __uncover_field(self, x: int, y: int) -> None:
         """Uncover a field on the game board
@@ -202,7 +285,10 @@ class MinesweeperController(QMainWindow):
         except FieldTaggedError:
             self.view.statusbar.showMessage("You need to untag the field before you can open it", 5000)
         except MineFound:
-            self.__lose()
+            self.__end_game(won=False)
+
+        if self.model.won():
+            self.__end_game(won=True)
 
     def __tag_field(self, x: int, y: int) -> None:
         """Tag a field on the game board.
@@ -232,11 +318,14 @@ class MinesweeperController(QMainWindow):
         except AlreadyUncoveredError:
             pass
 
-    def __lose(self) -> None:
+    def __end_game(self, won: bool = False) -> None:
         """End the game
 
         This method ends the game by disabling all buttons, displaying the positions of the mines on the game board
         and displaying a message for the user.
+
+        :param won: True if the game has been won (i.e. all fields without a mine have been uncovered), False if the
+            game has been lost (i.e. the player tried to uncover a field with a mine)
         """
         # End the game
         self.game_running = False
@@ -257,4 +346,4 @@ class MinesweeperController(QMainWindow):
                 widget.setStyleSheet(MinesweeperController.MINE_FOUND_STYLE)
 
         # Display a message - TODO: Open a dialog instead
-        self.view.statusbar.showMessage("You lost :(", 5000)
+        self.view.statusbar.showMessage("You won :)" if won else "You lost :)", 5000)

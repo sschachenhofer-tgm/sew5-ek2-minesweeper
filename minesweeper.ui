@@ -62,13 +62,36 @@
     <property name="title">
      <string>New game</string>
     </property>
-    <addaction name="action_new_game"/>
+    <addaction name="new_game_easy"/>
+    <addaction name="new_game_medium"/>
+    <addaction name="new_game_difficult"/>
+    <addaction name="new_game_custom"/>
    </widget>
    <addaction name="new_game"/>
   </widget>
   <action name="action_new_game">
    <property name="text">
     <string>Start new game</string>
+   </property>
+  </action>
+  <action name="new_game_easy">
+   <property name="text">
+    <string>Easy (9x9, 10 mines)</string>
+   </property>
+  </action>
+  <action name="new_game_medium">
+   <property name="text">
+    <string>Medium (16x16, 40 mines)</string>
+   </property>
+  </action>
+  <action name="new_game_difficult">
+   <property name="text">
+    <string>Difficult (30x16, 99 mines)</string>
+   </property>
+  </action>
+  <action name="new_game_custom">
+   <property name="text">
+    <string>Custom</string>
    </property>
   </action>
  </widget>

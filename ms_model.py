@@ -1,4 +1,3 @@
-import enum
 import random
 
 
@@ -148,6 +147,20 @@ class MinesweeperModel:
 
         self.__board[x][y].uncover()
         return self.__mines_around(x, y)
+
+    def won(self) -> bool:
+        """Check whether all empty Fields have been uncovered
+
+        The game has been won if all empty fields (i.e. all Fields without a mine) have been uncovered.
+
+        :return: True if all Fields without a bomb have been uncovered, False otherwise
+        """
+        for col in self.__board:
+            for field in col:
+                if field.state != Field.UNCOVERED and not field.mine:
+                    return False
+
+        return True
 
     def __mines_around(self, x: int, y: int) -> int:
         """Calculate the number of mines on adjacent fields.
