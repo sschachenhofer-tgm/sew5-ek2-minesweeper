@@ -11,7 +11,7 @@ class MinesweeperController(QMainWindow):
     YELLOW_BG = "background-color: yellow; color: black;"
     BLUE_BG = "background-color: blue; color: white;"
     GREEN_BG = "background-color: green; color: black;"
-    FONT = "font-weight: 1000; font-size: 2em;"
+    FONT = "font-weight: 1000; font-size: 17px;"
     NO_BORDER = "border: none;"
 
     MINE_MISSED_STYLE = f"* {{ {RED_BG} {FONT} {NO_BORDER} }}"
@@ -19,7 +19,18 @@ class MinesweeperController(QMainWindow):
 
     MINE_TAGGED_STYLE = f"* {{ {YELLOW_BG} {FONT} {NO_BORDER} }}"
     MINE_POSSIBLE_STYLE = f"* {{ {BLUE_BG} {FONT} {NO_BORDER} }}"
-    UNCOVERED_STYLE = f"* {{ {FONT} }}"
+
+    UNCOVERED_STYLE = [
+        "",  # Fields with 0 bordering mines don't have any text
+        f"* {{ color: #0200fd; {FONT} {NO_BORDER} }}",  # 1 mine
+        f"* {{ color: #017e00; {FONT} {NO_BORDER} }}",  # 2 mines
+        f"* {{ color: red; {FONT} {NO_BORDER} }}",      # 3 mines
+        f"* {{ color: #010180; {FONT} {NO_BORDER} }}",  # 4 mines
+        f"* {{ color: #7f0300; {FONT} {NO_BORDER} }}",  # 5 mines
+        f"* {{ color: #008180; {FONT} {NO_BORDER} }}",  # 6 mines
+        f"* {{ color: black; {FONT} {NO_BORDER} }}",    # 7 mines
+        f"* {{ color: #808080; {FONT} {NO_BORDER} }}",  # 8 mines
+    ]
 
     def __init__(self, columns: int = 9, rows: int = 9, mines: int = 10):
         super().__init__(parent=None)
@@ -101,8 +112,9 @@ class MinesweeperController(QMainWindow):
 
             # The grid layout is accessed by row and column (y, x) instead of x, y
             button = self.grid.itemAtPosition(y, x).widget()
+
             label = QLabel(str(n) if n > 0 else "")
-            label.setStyleSheet(MinesweeperController.UNCOVERED_STYLE)
+            label.setStyleSheet(MinesweeperController.UNCOVERED_STYLE[n])
             self.grid.replaceWidget(button, label, options=Qt.FindChildrenRecursively)
 
             # Delete the button
