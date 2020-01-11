@@ -1,12 +1,14 @@
 from PyQt5.QtCore import QSignalMapper, Qt
-from PyQt5.QtWidgets import QDialog, QGridLayout, QLabel, QMainWindow, QPushButton, QVBoxLayout
+from PyQt5.QtWidgets import QDialog, QGridLayout, QLabel, QMainWindow, QPushButton
 
 from ms_window import Ui_MainWindow
 from ms_model import *
 
 
 class MinesweeperController(QMainWindow):
+    """The minesweeper controller class, responsible for handling user input"""
 
+    # Reusable stylesheet blocks
     RED_BG = "background-color: red; color: black;"
     YELLOW_BG = "background-color: yellow; color: black;"
     BLUE_BG = "background-color: blue; color: white;"
@@ -14,12 +16,13 @@ class MinesweeperController(QMainWindow):
     FONT = "font-weight: 1000; font-size: 17px;"
     NO_BORDER = "border: none;"
 
-    MINE_MISSED_STYLE = f"* {{ {RED_BG} {FONT} {NO_BORDER} }}"
-    MINE_FOUND_STYLE = f"* {{ {GREEN_BG} {FONT} {NO_BORDER} }}"
+    # Stylesheet constants for quick styling of fields
+    MINE_MISSED_STYLE = f"* {{ {RED_BG} {FONT} {NO_BORDER} }}"  # For mines the player hasn't found until the game ended
+    MINE_FOUND_STYLE = f"* {{ {GREEN_BG} {FONT} {NO_BORDER} }}"  # For mines the player had tagged before the game ended
+    MINE_TAGGED_STYLE = f"* {{ {YELLOW_BG} {FONT} {NO_BORDER} }}"  # For fields the player tagged as "mine"
+    MINE_POSSIBLE_STYLE = f"* {{ {BLUE_BG} {FONT} {NO_BORDER} }}"  # For fields the player tagged as "possibly a mine"
 
-    MINE_TAGGED_STYLE = f"* {{ {YELLOW_BG} {FONT} {NO_BORDER} }}"
-    MINE_POSSIBLE_STYLE = f"* {{ {BLUE_BG} {FONT} {NO_BORDER} }}"
-
+    # Font styles for the labels specifying the number of adjacent mines - these are the original Minesweeper colors
     UNCOVERED_STYLE = [
         "",  # Fields with 0 bordering mines don't have any text
         f"* {{ color: #0200fd; {FONT} {NO_BORDER} }}",  # 1 mine
@@ -33,14 +36,21 @@ class MinesweeperController(QMainWindow):
     ]
 
     def __init__(self, columns: int = 9, rows: int = 9, mines: int = 10):
+        """Initialize a game of Minesweeper
+
+        This will create the game board and hide the specified number of mines on the board.
+
+        :param columns: The number of columns on the game board (the width). Default is 9.
+        :param rows: The number of rows on the game board (the height). Default is 9.
+        :param mines: The number of mines to hide on the game board. There cannot be more mines on the game board than
+            there are fields. Default is 10.
+        """
         super().__init__(parent=None)
 
         self.columns = columns
         self.rows = rows
         self.mines = mines
         self.game_running = True
-
-        print(f"Board dimensions: {self.columns}x{self.rows}, {self.mines} mines")
 
         # Initialize the GUI
         self.view = Ui_MainWindow()
@@ -62,30 +72,32 @@ class MinesweeperController(QMainWindow):
         self.view.main_layout.addLayout(self.grid)
         self.grid.setSpacing(5)
 
-        # This is the only way to keep a reference to all buttons on the board, since buttons are "re-parented" to the
-        # main window after being added to a layout
+        # This is the only efficient way to keep a reference to all buttons on the board, since buttons are
+        # "re-parented" to the main window after being added to a layout
         self.buttons = []
 
         # Add the buttons to the GUI
         for n in range(self.columns * self.rows):
+            # Create the QPushButton
             button = QPushButton()
             button.setFixedSize(40, 40)
 
             # Connect the button signals
             self.mapper.setMapping(button, n)
+            button.clicked.connect(self.mapper.map)  # For left-clicks
             self.rc_mapper.setMapping(button, n)
-            button.clicked.connect(self.mapper.map)
-            button.customContextMenuRequested.connect(self.rc_mapper.map)
-            button.setContextMenuPolicy(Qt.CustomContextMenu)
+            button.customContextMenuRequested.connect(self.rc_mapper.map)  # For right-clicks
+            button.setContextMenuPolicy(Qt.CustomContextMenu)  # For enabling the customContextMenuRequested signal
 
+            # Add the button to the QGridLayout
             self.grid.addWidget(button, int(n / self.columns), n % self.columns, alignment=Qt.AlignCenter)
             self.buttons.append(button)
 
-        # Resize the rows
+        # Resize the grid rows
         for i in range(self.grid.rowCount()):
             self.grid.setRowMinimumHeight(i, 40)
 
-        # Resize the columns
+        # Resize the grid columns
         for i in range(self.grid.columnCount()):
             self.grid.setColumnMinimumWidth(i, 40)
 
@@ -100,7 +112,18 @@ class MinesweeperController(QMainWindow):
 
         self.setFixedSize(window_width, window_height)
 
-    def button_clicked(self, position):
+    def button_clicked(self, position: int) -> None:
+        """Handle a click event on a button on the game board
+
+        If the field underneath the button contains a mine, the game ends and a message is displayed.
+        If the field underneath the button is currently tagged (displayed as exclamation mark (!) or question mark (?)
+        on the game board, the field will not be uncovered and instead a message is displayed.
+        Otherwise, the field is uncovered. The button is replaced by a label displaying the number of mines on the
+        adjacent fields. If no adjacent field contains a mine, the untagged, uncovered adjacent fields will be
+        uncovered as well.
+
+        :param position: The position of the button (width * y + x)
+        """
         x = position % self.columns
         y = int(position / self.columns)
 
@@ -109,8 +132,15 @@ class MinesweeperController(QMainWindow):
         else:
             self.view.statusbar.showMessage("You need to restart the game!", 5000)
 
+    def button_right_clicked(self, position: int) -> None:
+        """Handle a right-click event on a button on the game board.
 
-    def button_right_clicked(self, position):
+        Right-clicks tag the corresponding field. A field can be tagged as "having a mine" (displayed as an exclamation
+        mark "!") or as "possibly having a mine" (displayed as a question mark "?"). Right-clicking a field switches
+        between the states untagged, "having a mine" and "possibly having a mine". A tagged field cannot be uncovered.
+
+        :param position: The position of the button (width * y + x)
+        """
         x = position % self.columns
         y = int(position / self.columns)
 
@@ -119,7 +149,20 @@ class MinesweeperController(QMainWindow):
         else:
             self.view.statusbar.showMessage("You need to restart the game!", 5000)
 
-    def __uncover_field(self, x, y):
+    def __uncover_field(self, x: int, y: int) -> None:
+        """Uncover a field on the game board
+
+        This method uncovers a field on the game board. If the field underneath the button contains a mine, the game
+        ends and a message is displayed. If the field underneath the button is currently tagged (displayed as
+        exclamation mark (!) or question mark (?) on the game board, the field will not be uncovered.
+
+        Otherwise, the field is uncovered. The button is replaced by a label displaying the number of mines on the
+        adjacent fields. If no adjacent field contains a mine, the untagged, uncovered adjacent fields will be
+        uncovered as well.
+
+        :param x: The x coordinate (column) of the field to uncover (the leftmost column has the x coordinate 0).
+        :param y: The y coordinate (row) of the field to uncover (the uppermost row has the y coordinate 0).
+        """
         try:
             n = self.model.uncover(x, y)
 
@@ -161,7 +204,16 @@ class MinesweeperController(QMainWindow):
         except MineFound:
             self.__lose()
 
-    def __tag_field(self, x, y):
+    def __tag_field(self, x: int, y: int) -> None:
+        """Tag a field on the game board.
+
+        A field can be tagged as "having a mine" (displayed as an exclamation
+        mark "!") or as "possibly having a mine" (displayed as a question mark "?"). Right-clicking a field switches
+        between the states untagged, "having a mine" and "possibly having a mine". A tagged field cannot be uncovered.
+
+        :param x: The x coordinate (column) of the field to uncover (the leftmost column has the x coordinate 0).
+        :param y: The y coordinate (row) of the field to uncover (the uppermost row has the y coordinate 0).
+        """
         try:
             # The grid layout is accessed by row and column (y, x) instead of x, y
             button = self.grid.itemAtPosition(y, x).widget()
@@ -180,7 +232,12 @@ class MinesweeperController(QMainWindow):
         except AlreadyUncoveredError:
             pass
 
-    def __lose(self):
+    def __lose(self) -> None:
+        """End the game
+
+        This method ends the game by disabling all buttons, displaying the positions of the mines on the game board
+        and displaying a message for the user.
+        """
         # End the game
         self.game_running = False
 
