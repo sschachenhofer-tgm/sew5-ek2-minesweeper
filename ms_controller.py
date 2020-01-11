@@ -104,15 +104,29 @@ class MinesweeperController(QMainWindow):
         x = position % self.columns
         y = int(position / self.columns)
 
-        if not self.game_running:
+        if self.game_running:
+            self.__uncover_field(x, y)
+        else:
             self.view.statusbar.showMessage("You need to restart the game!", 5000)
 
+
+    def button_right_clicked(self, position):
+        x = position % self.columns
+        y = int(position / self.columns)
+
+        if self.game_running:
+            self.__tag_field(x, y)
+        else:
+            self.view.statusbar.showMessage("You need to restart the game!", 5000)
+
+    def __uncover_field(self, x, y):
         try:
             n = self.model.uncover(x, y)
 
             # The grid layout is accessed by row and column (y, x) instead of x, y
             button = self.grid.itemAtPosition(y, x).widget()
 
+            # Replace the button with a label displaying the number of adjacent mines
             label = QLabel(str(n) if n > 0 else "")
             label.setStyleSheet(MinesweeperController.UNCOVERED_STYLE[n])
             self.grid.replaceWidget(button, label, options=Qt.FindChildrenRecursively)
@@ -121,20 +135,33 @@ class MinesweeperController(QMainWindow):
             button.deleteLater()
             self.buttons.remove(button)
 
+            # If the field has 0 adjacent bombs, uncover the four directly surrounding fields as well
+            if n == 0:
+                if x - 1 >= 0 and self.model.field_state(x - 1, y) == Field.COVERED:
+                    self.__uncover_field(x - 1, y)  # Left field
+                if x - 1 >= 0 and y - 1 >= 0 and self.model.field_state(x - 1, y - 1) == Field.COVERED:
+                    self.__uncover_field(x - 1, y - 1)  # Top left field
+                if y - 1 >= 0 and self.model.field_state(x, y - 1) == Field.COVERED:
+                    self.__uncover_field(x, y - 1)  # Top field
+                if x + 1 < self.columns and y - 1 >= 0 and self.model.field_state(x + 1, y - 1) == Field.COVERED:
+                    self.__uncover_field(x + 1, y - 1)  # Top right field
+                if x + 1 < self.columns and self.model.field_state(x + 1, y) == Field.COVERED:
+                    self.__uncover_field(x + 1, y)  # Right field
+                if x + 1 < self.columns and y + 1 < self.rows and self.model.field_state(x + 1, y + 1) == Field.COVERED:
+                    self.__uncover_field(x + 1, y + 1)  # Bottom right field
+                if y + 1 < self.rows and self.model.field_state(x, y + 1) == Field.COVERED:
+                    self.__uncover_field(x, y + 1)  # Bottom field
+                if x - 1 >= 0 and y + 1 < self.rows and self.model.field_state(x - 1, y + 1) == Field.COVERED:
+                    self.__uncover_field(x - 1, y + 1)  # Bottom left field
+
         except AlreadyUncoveredError:
             pass
         except FieldTaggedError:
-            self.view.statusbar.showMessage("You need to untag the field before you can open it")
+            self.view.statusbar.showMessage("You need to untag the field before you can open it", 5000)
         except MineFound:
             self.__lose()
 
-    def button_right_clicked(self, position):
-        x = position % self.columns
-        y = int(position / self.columns)
-
-        if not self.game_running:
-            self.view.statusbar.showMessage("You need to restart the game!", 5000)
-
+    def __tag_field(self, x, y):
         try:
             # The grid layout is accessed by row and column (y, x) instead of x, y
             button = self.grid.itemAtPosition(y, x).widget()

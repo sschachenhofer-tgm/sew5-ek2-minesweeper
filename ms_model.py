@@ -20,6 +20,20 @@ class Field:
             self.state = (self.state + 1) % 3
             return self.state
 
+    def uncover(self):
+        if self.state == Field.UNCOVERED:
+            # The field has been uncovered already
+            raise AlreadyUncoveredError
+        elif self.state in [Field.MINE_TAGGED, Field.MINE_POSSIBLE]:
+            # The field has been tagged - it needs to be untagged before the player can uncover it
+            raise FieldTaggedError
+        elif self.mine:
+            # There is a mine at the field
+            raise MineFound
+
+        else:
+            self.state = Field.UNCOVERED
+
 
 class AlreadyUncoveredError(Exception):
     pass
@@ -72,18 +86,8 @@ class MinesweeperModel:
         if y < 0 or y >= self.height:
             raise ValueError(f"Illegal value for y: {y} with height {self.height}")
 
-        if self.__board[x][y].state == Field.UNCOVERED:
-            # The field has been uncovered already
-            raise AlreadyUncoveredError
-        elif self.__board[x][y].state == Field.MINE_TAGGED or self.__board[x][y].state == Field.MINE_POSSIBLE:
-            # The field has been tagged - it needs to be untagged before the player can uncover it
-            raise FieldTaggedError
-        elif self.__board[x][y].mine:
-            # There is a mine at the field
-            raise MineFound
-        else:
-            # Calculate the number of mines surrounding the field
-            return self.__mines_around(x, y)
+        self.__board[x][y].uncover()
+        return self.__mines_around(x, y)
 
     def __mines_around(self, x, y) -> int:
         if x < 0 or x >= self.width:
