@@ -8,6 +8,7 @@ from ms_model import *
 class MinesweeperController(QMainWindow):
 
     RED_BG = "background-color: red; color: black;"
+    YELLOW_BG = "background-color: yellow; color: black;"
     BLUE_BG = "background-color: blue; color: white;"
     GREEN_BG = "background-color: green; color: black;"
     FONT = "font-weight: 1000; font-size: 2em;"
@@ -16,7 +17,7 @@ class MinesweeperController(QMainWindow):
     MINE_MISSED_STYLE = f"* {{ {RED_BG} {FONT} {NO_BORDER} }}"
     MINE_FOUND_STYLE = f"* {{ {GREEN_BG} {FONT} {NO_BORDER} }}"
 
-    MINE_TAGGED_STYLE = f"* {{ {RED_BG} {FONT} {NO_BORDER} }}"
+    MINE_TAGGED_STYLE = f"* {{ {YELLOW_BG} {FONT} {NO_BORDER} }}"
     MINE_POSSIBLE_STYLE = f"* {{ {BLUE_BG} {FONT} {NO_BORDER} }}"
     UNCOVERED_STYLE = f"* {{ {FONT} }}"
 
@@ -35,7 +36,7 @@ class MinesweeperController(QMainWindow):
         self.view.setupUi(self)
 
         # Initialize the model
-        self.model = MinesweeperModel(self.columns, self.rows, mines)
+        self.model = MinesweeperModel(width=self.columns, height=self.rows, n_mines=mines)
 
         # Initialize a QSignalMapper to enable mapping all button clicks to a single method
         self.mapper = QSignalMapper(self.view.centralwidget)
@@ -89,16 +90,18 @@ class MinesweeperController(QMainWindow):
         self.setFixedSize(window_width, window_height)
 
     def button_clicked(self, position):
-        x = int(position / self.columns)
-        y = position % self.columns
+        x = position % self.columns
+        y = int(position / self.columns)
 
         if not self.game_running:
             self.view.statusbar.showMessage("You need to restart the game!", 5000)
 
         try:
             n = self.model.uncover(x, y)
-            button = self.grid.itemAtPosition(x, y).widget()
-            label = QLabel(str(n))
+
+            # The grid layout is accessed by row and column (y, x) instead of x, y
+            button = self.grid.itemAtPosition(y, x).widget()
+            label = QLabel(str(n) if n > 0 else "")
             label.setStyleSheet(MinesweeperController.UNCOVERED_STYLE)
             self.grid.replaceWidget(button, label, options=Qt.FindChildrenRecursively)
 
@@ -114,14 +117,15 @@ class MinesweeperController(QMainWindow):
             self.__lose()
 
     def button_right_clicked(self, position):
-        x = int(position / self.columns)
-        y = position % self.columns
+        x = position % self.columns
+        y = int(position / self.columns)
 
         if not self.game_running:
             self.view.statusbar.showMessage("You need to restart the game!", 5000)
 
         try:
-            button = self.grid.itemAtPosition(x, y).widget()
+            # The grid layout is accessed by row and column (y, x) instead of x, y
+            button = self.grid.itemAtPosition(y, x).widget()
 
             new_state = self.model.switch_tagging(x, y)
             if new_state == Field.COVERED:
@@ -147,7 +151,8 @@ class MinesweeperController(QMainWindow):
 
         # Show the mine positions:
         for x, y in self.model.mines:
-            widget = self.grid.itemAtPosition(x, y).widget()
+            # The grid layout is accessed by row and column (y, x) instead of x, y
+            widget = self.grid.itemAtPosition(y, x).widget()
             widget.setText("\u2715")
 
             if self.model.field_state(x, y) == Field.COVERED:

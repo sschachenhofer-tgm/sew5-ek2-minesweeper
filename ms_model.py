@@ -68,9 +68,9 @@ class MinesweeperModel:
 
     def uncover(self, x: int, y: int) -> int:
         if x < 0 or x >= self.width:
-            raise ValueError("Illegal value for x")
+            raise ValueError(f"Illegal value for x: {x} with width {self.width}")
         if y < 0 or y >= self.height:
-            raise ValueError("Illegal value for y")
+            raise ValueError(f"Illegal value for y: {y} with height {self.height}")
 
         if self.__board[x][y].state == Field.UNCOVERED:
             # The field has been uncovered already
