@@ -229,8 +229,7 @@ class MinesweeperController(QMainWindow):
                         + self.view.statusbar.sizeHint().height() \
                         + 18
 
-        # self.setFixedSize(window_width, window_height)
-        self.resize(window_width, window_height)
+        self.setFixedSize(window_width, window_height)
 
     def __uncover_field(self, x: int, y: int) -> None:
         """Uncover a field on the game board
