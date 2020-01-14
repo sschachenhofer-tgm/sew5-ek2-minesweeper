@@ -1,7 +1,7 @@
 import time
 
 from PyQt5.QtCore import QSignalMapper, Qt
-from PyQt5.QtWidgets import QDialog, QGridLayout, QLabel, QMainWindow, QPushButton, QSizePolicy
+from PyQt5.QtWidgets import QDialog, QGridLayout, QLabel, QMainWindow, QMessageBox, QPushButton, QSizePolicy
 
 from ms_window import Ui_MainWindow
 from ms_model import *
@@ -344,5 +344,5 @@ class MinesweeperController(QMainWindow):
             else:
                 widget.setStyleSheet(MinesweeperController.MINE_FOUND_STYLE)
 
-        # Display a message - TODO: Open a dialog instead
-        self.view.statusbar.showMessage("You won :)" if won else "You lost :)", 5000)
+        # Display a message
+        QMessageBox.information(self, "Minesweeper", "You won :)" if won else "You lost :)")
